@@ -125,48 +125,53 @@ def barycentric(A, B, C, P):
         V3(B.x - A.x, C.x - A.x, A.x - P.x),
         V3(B.y - A.y, C.y - A.y, A.y - P.y)
     )
-    if (abs(cz) < 1):
+    if (abs(cz) <= 0):
         return (-1, -1, -1)
+    
     u = cx/cz
     v = cy/cz
-    w = 1 - (cx + cy) / cz
+    w = 1 - (u + v)
     
     return (w, v, u)
     
-def transform(vertex, scale, translate):
+def transformT(vertex, scale, translate):
     return V3(
         (vertex[0] * scale[0]) + translate[0],
         (vertex[1] * scale[1]) + translate[1],
         (vertex[2] * scale[2]) + translate[2]
     )
     
-def transform2(r, vertex):
-    aumented_vertex = [
+def transform(r, vertex):
+    aumented_vertex = Matrix([
         vertex[0],
         vertex[1],
         vertex[2],
         1
-    ]
-    
-    temp_Transformed_vertex = matrix_multiplication4(r.View, aumented_vertex)
-    temp_Transformed_vertex2 = matrix_multiplication4(r.Model, temp_Transformed_vertex)
-    temp_Transformed_vertex3 = matrix_multiplication4(r.Projection, temp_Transformed_vertex2)
-    temp_Transformed_vertex4 = matrix_multiplication4(r.ViewPort, temp_Transformed_vertex3)
+    ])
+
+    # temp_Transformed_vertex = matrix_multiplication4(r.Model, aumented_vertex)
+    # temp_Transformed_vertex2 = matrix_multiplication4(r.View, temp_Transformed_vertex)
+    # temp_Transformed_vertex3 = matrix_multiplication4(r.Projection, temp_Transformed_vertex2)
+    # temp_Transformed_vertex4 = matrix_multiplication4(r.ViewPort, temp_Transformed_vertex3)
+
+    transformed_vertex_temp = r.View @ r.Model @ aumented_vertex
+    # transformed_vertex_temp = r.ViewPort @ r.Projection @ r.View @ r.Model @ aumented_vertex
 
     transformed_vertex = []
-    for i in temp_Transformed_vertex4:
+    for i in transformed_vertex_temp.matrix:
         transformed_vertex.append(i[0])
-        
+
+    # print(transformed_vertex)
+
     return V3(
         transformed_vertex[0] / transformed_vertex[3],
         transformed_vertex[1] / transformed_vertex[3],
         transformed_vertex[2] / transformed_vertex[3]    
     )
     
-def load_model(r, t, filename, tf=(0, 0, 0), s=(1, 1, 1), rotate=(0, 0, 0)):
+def load_modelR(r, t, filename, tf=(0, 0, 0), s=(1, 1, 1), rotate=(0, 0, 0)):
     r.loadModelMatrix(tf, s, rotate)
     cube = Obj(filename)
-    
     for face in cube.caras:       
         if(len(face) == 4):
             f1 = face[0][0] - 1
@@ -174,10 +179,10 @@ def load_model(r, t, filename, tf=(0, 0, 0), s=(1, 1, 1), rotate=(0, 0, 0)):
             f3 = face[2][0] - 1
             f4 = face[3][0] - 1
             
-            v1 = transform2(r, cube.vertices[f1])
-            v2 = transform2(r, cube.vertices[f2])
-            v3 = transform2(r, cube.vertices[f3])
-            v4 = transform2(r, cube.vertices[f4])
+            v1 = transform(r, cube.vertices[f1])
+            v2 = transform(r, cube.vertices[f2])
+            v3 = transform(r, cube.vertices[f3])
+            v4 = transform(r, cube.vertices[f4])
             
             if (r.active_texture):
                 ft1 = face[0][1] - 1
@@ -190,59 +195,29 @@ def load_model(r, t, filename, tf=(0, 0, 0), s=(1, 1, 1), rotate=(0, 0, 0)):
                 vt3 = V3(*cube.tvertices[ft3])
                 vt4 = V3(*cube.tvertices[ft4])
 
-                r.vertex_buffer_object.append(v1)
-                r.vertex_buffer_object.append(v2)
-                r.vertex_buffer_object.append(v3)
-                r.vertex_buffer_object.append(vt1)
-                r.vertex_buffer_object.append(vt2)
-                r.vertex_buffer_object.append(vt3)
-                
-                r.vertex_buffer_object.append(v2)
-                r.vertex_buffer_object.append(v3)
-                r.vertex_buffer_object.append(v4)
-                r.vertex_buffer_object.append(vt2)
-                r.vertex_buffer_object.append(vt3)
-                r.vertex_buffer_object.append(vt4)
-                
+                trianguleR(r,
+                    (v1, v2, v3),
+                    t,
+                    (vt1, vt2, vt3)
+                )
+
+                trianguleR(r,
+                    (v1, v3, v4),
+                    t,
+                    (vt1, vt3, vt4)
+                )
             else:
-                r.vertex_buffer_object.append(v1)
-                r.vertex_buffer_object.append(v2)
-                r.vertex_buffer_object.append(v3)
-                
-                r.vertex_buffer_object.append(v2)
-                r.vertex_buffer_object.append(v3)
-                r.vertex_buffer_object.append(v4)
-                
-            fn1 = face[0][2] - 1
-            fn2 = face[1][2] - 1
-            fn3 = face[2][2] - 1
-            fn4 = face[3][2] - 1
-            
-            vn1 = V3(*cube.nvertices[fn1])
-            vn2 = V3(*cube.nvertices[fn2])
-            vn3 = V3(*cube.nvertices[fn3])
-            vn4 = V3(*cube.nvertices[fn4])
-            
-            r.vertex_buffer_object.append(vn1)
-            r.vertex_buffer_object.append(vn2)
-            r.vertex_buffer_object.append(vn3)
-            
-            r.vertex_buffer_object.append(vn2)
-            r.vertex_buffer_object.append(vn3)
-            r.vertex_buffer_object.append(vn4)
+                trianguleR(r, (v1, v2, v3))
+                trianguleR(r, (v1, v3, v4))
 
         if (len(face) == 3):
             f1 = face[0][0] - 1
             f2 = face[1][0] - 1
             f3 = face[2][0] - 1
             
-            v1 = transform2(r, cube.vertices[f1])
-            v2 = transform2(r, cube.vertices[f2])
-            v3 = transform2(r, cube.vertices[f3])
-            
-            r.vertex_buffer_object.append(v1)
-            r.vertex_buffer_object.append(v2)
-            r.vertex_buffer_object.append(v3)
+            v1 = transform(r, cube.vertices[f1])
+            v2 = transform(r, cube.vertices[f2])
+            v3 = transform(r, cube.vertices[f3])
             
             if (r.active_texture):
                 ft1 = face[0][1] - 1
@@ -253,43 +228,144 @@ def load_model(r, t, filename, tf=(0, 0, 0), s=(1, 1, 1), rotate=(0, 0, 0)):
                 vt2 = V3(*cube.tvertices[ft2])
                 vt3 = V3(*cube.tvertices[ft3])
         
-                r.vertex_buffer_object.append(vt1)
-                r.vertex_buffer_object.append(vt2)
-                r.vertex_buffer_object.append(vt3)
+                trianguleR(r,
+                    (v1, v2, v3),
+                    t,
+                    (vt1, vt2, vt3)
+                )
+            else:
+                trianguleR(r, (v1, v2, v3))
+    
+def load_model(r, filename, tf=(0, 0, 0), s=(1, 1, 1), rotate=(0, 0, 0)):
+    r.loadModelMatrix(tf, s, rotate)
+    cube = Obj(filename)
+    
+    vertex_buffer_object = []
+    
+    for face in cube.caras:       
+        if(len(face) == 4):
+            f1 = face[0][0] - 1
+            f2 = face[1][0] - 1
+            f3 = face[2][0] - 1
+            f4 = face[3][0] - 1
+            
+            v1 = transform(r, cube.vertices[f1])
+            v2 = transform(r, cube.vertices[f2])
+            v3 = transform(r, cube.vertices[f3])
+            v4 = transform(r, cube.vertices[f4])
+            
+            vertex_buffer_object.append(v1)
+            vertex_buffer_object.append(v2)
+            vertex_buffer_object.append(v3)
+            
+            if (r.active_texture):
+                ft1 = face[0][1] - 1
+                ft2 = face[1][1] - 1
+                ft3 = face[2][1] - 1
+                
+                vt1 = V3(*cube.tvertices[ft1])
+                vt2 = V3(*cube.tvertices[ft2])
+                vt3 = V3(*cube.tvertices[ft3])
+                
+                vertex_buffer_object.append(vt1)
+                vertex_buffer_object.append(vt2)
+                vertex_buffer_object.append(vt3)
 
-            fn1 = face[0][2] - 1
-            fn2 = face[1][2] - 1
-            fn3 = face[2][2] - 1
+            try:
+                fn1 = face[0][2] - 1
+                fn2 = face[1][2] - 1
+                fn3 = face[2][2] - 1
+                
+                vn1 = V3(*cube.nvertices[fn1])
+                vn2 = V3(*cube.nvertices[fn2])
+                vn3 = V3(*cube.nvertices[fn3])
+                
+                vertex_buffer_object.append(vn1)
+                vertex_buffer_object.append(vn2)
+                vertex_buffer_object.append(vn3)
+                
+            except:
+                pass
             
-            vn1 = V3(*cube.nvertices[fn1])
-            vn2 = V3(*cube.nvertices[fn2])
-            vn3 = V3(*cube.nvertices[fn3])
+            vertex_buffer_object.append(v1)
+            vertex_buffer_object.append(v3)
+            vertex_buffer_object.append(v4)
+                
+            if r.active_texture:
+                
+                ft1 = face[0][1] - 1
+                ft3 = face[2][1] - 1
+                try:
+                    ft4 = face[3][1] - 1
+                except:
+                    ft4 = 1
+                
+                vt1 = V3(*cube.tvertices[ft1])
+                vt3 = V3(*cube.tvertices[ft3])
+                vt4 = V3(*cube.tvertices[ft4])
+                
+                vertex_buffer_object.append(vt1)
+                vertex_buffer_object.append(vt3)
+                vertex_buffer_object.append(vt4)
             
-            r.vertex_buffer_object.append(vn1)
-            r.vertex_buffer_object.append(vn2)
-            r.vertex_buffer_object.append(vn3)
+            try:
+                fn1 = face[0][2] - 1
+                fn3 = face[2][2] - 1
+                fn4 = face[3][2] - 1
+            
+                vn1 = V3(*cube.nvertices[fn1])
+                vn3 = V3(*cube.nvertices[fn3])
+                vn4 = V3(*cube.nvertices[fn4])
+            
+                vertex_buffer_object.append(vn1)
+                vertex_buffer_object.append(vn3)
+                vertex_buffer_object.append(vn4)
+            except:
+                pass
+            
+        if (len(face) == 3):
+            f1 = face[0][0] - 1
+            f2 = face[1][0] - 1
+            f3 = face[2][0] - 1
+            
+            v1 = transform(r, cube.vertices[f1])
+            v2 = transform(r, cube.vertices[f2])
+            v3 = transform(r, cube.vertices[f3])
+            
+            vertex_buffer_object.append(v1)
+            vertex_buffer_object.append(v2)
+            vertex_buffer_object.append(v3)
+            
+            if (r.active_texture):
+                ft1 = face[0][1] - 1
+                ft2 = face[1][1] - 1
+                ft3 = face[2][1] - 1
+                
+                vt1 = V3(*cube.tvertices[ft1])
+                vt2 = V3(*cube.tvertices[ft2])
+                vt3 = V3(*cube.tvertices[ft3])
         
-    r.active_vertex_array = iter(r.vertex_buffer_object)
+                vertex_buffer_object.append(vt1)
+                vertex_buffer_object.append(vt2)
+                vertex_buffer_object.append(vt3)
 
-def draw(r, polygon):
-    
-    r.active_vertex_array = iter(r.vertex_buffer_object)
-    
-    if polygon == 'TRIANGLES':
-        try:
-            while True:
-                triangule(r) 
-        except StopIteration:
-            print('Done.')
-            
-    if polygon == 'WIREFRAME':
-        try:
-            while True:
-                triangule_wireframe(r) 
-        except StopIteration:
-            print('Done.')
-            
-
+            try:
+                fn1 = face[0][2] - 1
+                fn2 = face[1][2] - 1
+                fn3 = face[2][2] - 1
+                
+                vn1 = V3(*cube.nvertices[fn1])
+                vn2 = V3(*cube.nvertices[fn2])
+                vn3 = V3(*cube.nvertices[fn3])
+                
+                vertex_buffer_object.append(vn1)
+                vertex_buffer_object.append(vn2)
+                vertex_buffer_object.append(vn3)
+            except:
+                pass
+        
+    r.active_vertex_array = iter(vertex_buffer_object)
+        
 def load_model_FS(r, filename, s=(1, 1, 1), tf=(0, 0, 0)):
     cube = Obj(filename)
     for face in cube.caras:        
@@ -299,10 +375,10 @@ def load_model_FS(r, filename, s=(1, 1, 1), tf=(0, 0, 0)):
             f3 = face[2][0] - 1
             f4 = face[3][0] - 1
             
-            v1 = transform(cube.vertices[f1], s, tf)
-            v2 = transform(cube.vertices[f2], s, tf)
-            v3 = transform(cube.vertices[f3], s, tf)
-            v4 = transform(cube.vertices[f4], s, tf)
+            v1 = transformT(cube.vertices[f1], s, tf)
+            v2 = transformT(cube.vertices[f2], s, tf)
+            v3 = transformT(cube.vertices[f3], s, tf)
+            v4 = transformT(cube.vertices[f4], s, tf)
 
             triangule2(r, (v1, v2, v3))
             triangule2(r, (v1, v3, v4))
@@ -312,12 +388,34 @@ def load_model_FS(r, filename, s=(1, 1, 1), tf=(0, 0, 0)):
             f2 = face[1][0] - 1
             f3 = face[2][0] - 1
             
-            v1 = transform(cube.vertices[f1], s, tf)
-            v2 = transform(cube.vertices[f2], s, tf)
-            v3 = transform(cube.vertices[f3], s, tf)
+            v1 = transformT(cube.vertices[f1], s, tf)
+            v2 = transformT(cube.vertices[f2], s, tf)
+            v3 = transformT(cube.vertices[f3], s, tf)
         
             triangule2(r, (v1, v2, v3))
+
+def draw(r, polygon):
+    if polygon == 'TRIANGLESS':
+        try:
+            while True:
+                trianguleS(r) 
+        except StopIteration:
+            print('Modelo creado.')
             
+    if polygon == 'TRIANGLEST':
+        try:
+            while True:
+                trianguleT(r) 
+        except StopIteration:
+            print('Modelo creado.')
+            
+    if polygon == 'WIREFRAME':
+        try:
+            while True:
+                triangule_wireframe(r) 
+        except StopIteration:
+            print('Done.')
+           
 def trianguleB(r, A, B, C):
     
     # Acolor = (255, 0, 0)
@@ -332,7 +430,7 @@ def trianguleB(r, A, B, C):
         return
     
     gris = round(255 * i)
-    r.current_color = color2(gris, gris, gris)
+    r.current_color = color(gris, gris, gris)
     
     Bmin, Bmax = boundingB(A,B,C)
     Bmin.round()
@@ -349,30 +447,31 @@ def trianguleB(r, A, B, C):
                 print(r.zBuffer[x][y])
                 r.zBuffer[x][y] = z
                 r.glpoint(y, x)
-
-def triangule(r):
+                
+def trianguleR(r, vertices, t=None, tvertices=()):
     
-    A = next(r.active_vertex_array)
-    B = next(r.active_vertex_array)
-    C = next(r.active_vertex_array)
+    A, B, C = vertices
     
-    if r.active_texture:
-        tA = next(r.active_vertex_array)
-        tB = next(r.active_vertex_array)
-        tC = next(r.active_vertex_array)
+    L = V3(0, 0, 1)
+    N = (B - A) * (C - A)
+    i = N.norm() @ L.norm()
     
-    nA = next(r.active_vertex_array)
-    nB = next(r.active_vertex_array)
-    nC = next(r.active_vertex_array)
-
+    if (i < 0):
+        return
+    
+    gris = round(255 * i)
+    r.current_color = color(gris, gris, gris)
+    
     Bmin, Bmax = boundingB(A,B,C)
     Bmin.round()
     Bmax.round()
-
+    
+    if (t):
+        tA, tB, tC = tvertices
+        
     for x in range(Bmin.x, Bmax.x + 1):
         for y in range(Bmin.y, Bmax.y + 1):
-            print(Bmin.x, Bmin.y, Bmax.x, Bmax.y, x, y)
-            w, v, u = barycentric(A, B, C, V3(x, y))       
+            w, v, u = barycentric(A, B, C, V3(x, y))        
             if (w < 0 or v < 0 or u < 0):
                 continue
             
@@ -386,8 +485,54 @@ def triangule(r):
                 r.zBuffer[x][y] < z): 
                 r.zBuffer[x][y] = z
                 
+                if (r.active_texture):
+                    tx = tA.x * w + tB.x * u + tC.x * v
+                    ty = tA.y * w + tB.y * u + tC.y * v
+                    
+                    r.current_color = t.get_color_with_intensity(tx, ty, i)
+                
+                r.glpoint(x, y) 
+
+def trianguleS(r):
+    
+    A = next(r.active_vertex_array)
+    B = next(r.active_vertex_array)
+    C = next(r.active_vertex_array)
+    
+    if r.active_texture:
+        tA = next(r.active_vertex_array)
+        tB = next(r.active_vertex_array)
+        tC = next(r.active_vertex_array)
+    
+    if r.active_shader:
+        nA = next(r.active_vertex_array)
+        nB = next(r.active_vertex_array)
+        nC = next(r.active_vertex_array)
+
+    Bmin, Bmax = boundingB(A,B,C)
+    Bmin.round()
+    Bmax.round()
+
+    for x in range(Bmin.x, Bmax.x + 1):
+        for y in range(Bmin.y, Bmax.y + 1):
+            #print(Bmin.x, Bmin.y, Bmax.x, Bmax.y, x, y)
+            w, v, u = barycentric(A, B, C, V2(x, y))   
+            if (w < 0 or v < 0 or u < 0):
+                continue
+            
+            #A:w, B:u, C:v
+            z = A.z * w + B.z * u + C.z * v
+
+            if (x >= 0 and
+                y >= 0 and
+                x < len(r.zBuffer) and 
+                y < len(r.zBuffer[x]) and 
+                r.zBuffer[x][y] < z): 
+                
+                r.zBuffer[x][y] = z
+                
                 r.current_color = r.active_shader(
-                    r,
+                    coors=(x,y),
                     bar=(w,u,v),
                     vertices=(A,B,C),
                     texture_coords=(tA,tB,tC),
@@ -401,8 +546,58 @@ def triangule(r):
                     
                 #     r.current_color = t.get_color_with_intensity(tx, ty, i)
                 
-                r.glpoint(y, x) 
+                r.glpoint(x, y, r.current_color) 
+
+def trianguleT(r):
+    
+    A = next(r.active_vertex_array)
+    B = next(r.active_vertex_array)
+    C = next(r.active_vertex_array)
+    
+    if r.active_texture:
+        tA = next(r.active_vertex_array)
+        tB = next(r.active_vertex_array)
+        tC = next(r.active_vertex_array)
+    
+    if r.active_shader:
+        nA = next(r.active_vertex_array)
+        nB = next(r.active_vertex_array)
+        nC = next(r.active_vertex_array)
+        
+    L = V3(0, 0, 1)
+    N = (B - A) * (C - A)
+    i = N.norm() @ L.norm()
+
+    Bmin, Bmax = boundingB(A,B,C)
+    Bmin.round()
+    Bmax.round()
+
+    for x in range(Bmin.x, Bmax.x + 1):
+        for y in range(Bmin.y, Bmax.y + 1):
+            #print(Bmin.x, Bmin.y, Bmax.x, Bmax.y, x, y)
+            w, v, u = barycentric(A, B, C, V2(x, y))   
+            if (w < 0 or v < 0 or u < 0):
+                continue
+            
+            #A:w, B:u, C:v
+            z = A.z * w + B.z * u + C.z * v
+
+            if (x >= 0 and
+                y >= 0 and
+                x < len(r.zBuffer) and 
+                y < len(r.zBuffer[x]) and 
+                r.zBuffer[x][y] < z): 
                 
+                r.zBuffer[x][y] = z
+                
+                if (r.active_texture):
+                    tx = tA.x * w + tB.x * u + tC.x * v
+                    ty = tA.y * w + tB.y * u + tC.y * v
+                    
+                    r.current_color = r.active_texture.get_color_with_intensity(tx, ty, i)
+                
+                r.glpoint(x, y)                
+              
 def triangule_wireframe(r):
     
     A = next(r.active_vertex_array)
@@ -429,7 +624,7 @@ def triangule2(r, vertices, t=None, tvertices=()):
         return
     
     gris = round(255 * i)
-    r.current_color = color2(gris, gris, gris)
+    r.current_color = color(gris, gris, gris)
     
     Bmin, Bmax = boundingB(A,B,C)
     Bmin.round()

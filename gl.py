@@ -9,6 +9,7 @@ from colors import *
 from vectors import *
 from matrix import *
 import struct
+import random
 
 def char(c):
     # 1 bytes
@@ -33,10 +34,9 @@ class Render(object):
         self.background_Color = BLACK
         self.Model = None
         self.View = None
-        self.active_shader = shader
         self.active_vertex_array = []
-        self.vertex_buffer_object = []
-        self.active_texture = []
+        self.active_shader = None
+        self.active_texture = None
         self.light = V3(0, 0, 1)
         self.glViewPort(0,0, self.width, self.height)
         self.glClear()
@@ -46,75 +46,73 @@ class Render(object):
         scale = V3(*scale)
         rotate = V3(*rotate)
         
-        translation_matrix = [
+        translation_matrix = Matrix([
             [1, 0, 0, translate.x],
             [0, 1, 0, translate.y],
             [0, 0, 1, translate.z],
             [0, 0, 0,           1]
-        ]
+        ])
         
-        scale_matrix = [
+        scale_matrix = Matrix([
             [scale.x,       0,       0, 0],
             [      0, scale.y,       0, 0],
             [      0,       0, scale.z, 0],
             [      0,       0,       0, 1]
-        ]
+        ])
         
         anx = rotate.x
-        rotation_x = [
+        rotation_x = Matrix([
             [1,        0,         0, 0],
             [0, cos(anx), -sin(anx), 0],
             [0, sin(anx),  cos(anx), 0],
             [0,        0,         0, 1]
-        ]
+        ])
         
-        any = rotate.y
-        rotation_y = [
-            [ cos(any), 0, sin(any), 0],
+        anty = rotate.y
+        rotation_y = Matrix([
+            [ cos(anty), 0, sin(anty), 0],
             [        0,        1, 0, 0],
-            [-sin(any), 0, cos(any), 0],
+            [-sin(anty), 0, cos(anty), 0],
             [        0,        0, 0, 1]
-        ]
+        ])
         
         anz = rotate.z
-        rotation_z = [
+        rotation_z = Matrix([
             [cos(anz), -sin(anz), 0, 0],
             [sin(anz),  cos(anz), 0, 0],
             [       0,         0, 1, 0],
             [       0,         0, 0, 1]
-        ]
+        ])
             
-        tempRotation = matrix_multiplication4(rotation_y, rotation_z)
-        rotation_matrix = matrix_multiplication4(rotation_x, tempRotation)
+        rotation_matrix = rotation_x @ rotation_y @ rotation_z
 
-        tempModel = matrix_multiplication4(rotation_matrix, scale_matrix)
-        self.Model = matrix_multiplication4(translation_matrix, tempModel)
+        self.Model = translation_matrix @ rotation_matrix @ scale_matrix
     
     def loadViewMatrix(self, x, y, z, center):
-        Mi = [
+        Mi = Matrix([
             [x.x, x.y, x.z, 0],
             [y.x, y.y, y.z, 0],
             [z.x, z.y, z.z, 0],
             [  0,   0,   0, 1]
-        ]
+        ])
         
-        Op = [
+        Op = Matrix([
             [1, 0, 0, -center.x],
             [0, 1, 0, -center.y],
             [0, 0, 1, -center.z],
             [0, 0, 0,         1]
-        ]
+        ])
         
-        self.View = matrix_multiplication4(Mi, Op)
+        self.View = Mi @ Op
         
     def loadProjectionMatrix(self, eye, center):
         coeff = -1/(eye.length()-center.length())
-        self.Projection = [
+        self.Projection = Matrix([
             [1, 0, 0, 0],
             [0, 1, 0, 0],
             [0, 0, 1, 0],
             [0, 0, coeff, 1]
-        ]
+        ])
         
     def loadViewportMatrix(self):
         x = 0
@@ -122,12 +120,12 @@ class Render(object):
         w = self.width/2
         h = self.height/2
         
-        self.ViewPort = [
+        self.ViewPort = Matrix([
             [w, 0, 0, x + w],
             [0, h, 0, y + h],
             [0, 0, 128, 128],
             [0, 0, 0, 1]
-        ]    
+        ]) 
     
     def lookAt(self, eye, center, up):
         z = (eye - center).norm() 
@@ -163,25 +161,18 @@ class Render(object):
         f.write(dword(0))
         
         #pixel data
-        for x in range(self.width):
-            for y in range(self.height):
+        for x in range(self.height):
+            for y in range(self.width):
                 f.write(self.framebuffer[x][y])
                 
         f.close()
         
     def glpoint(self, x, y, colorp=None):
-        xComp = (x >= 0 & x < self.width)
-        yComp = (y >= 0 & y < self.height)
+        xComp = (x > 0 & x < self.width)
+        yComp = (y > 0 & y < self.height)
         
         if(xComp & yComp):
-            if(x == self.width):
-                x -= 1
-                self.framebuffer[x][y] = colorp or self.current_color
-            elif(y == self.height):
-                y -= 1
-                self.framebuffer[x][y] = colorp or self.current_color
-            else:
-                self.framebuffer[x][y] = colorp or self.current_color
+            self.framebuffer[y][x] = colorp or self.current_color
         
     #Funciones
 
@@ -220,7 +211,7 @@ class Render(object):
 
     #Cambiar color glClear
     def glClearColor(self, r, g, b):
-        NewColor = color(r, g, b)
+        NewColor = colorT(r, g, b)
         self.background_Color = NewColor
         self.glClear()
         
@@ -248,7 +239,7 @@ class Render(object):
 
     #Cambiar color glVertex
     def glColor(self, r, g, b):
-        self.VP_Color = color(r, g, b)
+        self.VP_Color = colorT(r, g, b)
         
     def glLine(self, x0, y0, x1, y1, colorp=None):
         
@@ -343,7 +334,27 @@ class Render(object):
                 else:
                     y -= 1
                 lim += dx * 2 
-
+                
+    def shader(self, **kwargs):
+        w, u, v = kwargs['bar']
+        Li = kwargs['light']
+        A, B, C = kwargs['vertices']
+        tA, tB, tC = kwargs['texture_coords']
+        nA, nB, nC = kwargs['normals']
+        
+        iA = nA.norm() @ Li.norm()
+        iB = nB.norm() @ Li.norm()
+        iC = nC.norm() @ Li.norm()
+        
+        i = (iA * w) + (iB * u) + (iC * v)
+        
+        if self.active_texture:
+            
+            tx = tA.x * w + tB.x * u * tC.x * v
+            ty = tA.y * w + tB.y * u * tC.y * v
+            
+            return self.active_texture.get_color_with_intensity(tx, ty, i)
+        
     #Escribir imagen 
     def glFinish(self):
         self.write('a.bmp')
@@ -352,23 +363,89 @@ class Render(object):
 def glinit():
     return Render(1024, 1024)
 
-def shader(render, **kwargs):
+def neptuno(**kwargs):
+    x, y = kwargs['coors']
     w, u, v = kwargs['bar']
     Li = kwargs['light']
-    A, B, C = kwargs['vertices']
-    tA, tB, tC = kwargs['texture_coords']
     nA, nB, nC = kwargs['normals']
-    
+        
     iA = nA.norm() @ Li.norm()
     iB = nB.norm() @ Li.norm()
     iC = nC.norm() @ Li.norm()
     
     i = (iA * w) + (iB * u) + (iC * v)
     
-    if (render.active_texture):
-        tx = tA.x * w + tB.x * u + tC.x * v
-        ty = tA.y * w + tB.y * u + tC.y * v
-        # b, g, r = render.active_texture.get_color_with_intensity(tx, ty, i)
-        return render.active_texture.get_color_with_intensity(tx, ty, i)
+    #772 tope superior
+    #252 tope inferior
+    
+    #239 tope izquierdo
+    #761 tope derecho
 
+    if 700 + random.randint(0, 20) <= y <= 772: 
+        if 290 - random.randint(0, 30) <= x <= 761 - random.randint(5, 15):
+            return color(99, 87, 64)  
+                
+    elif 630 + random.randint(0, 20) <= y <= random.randint(710, 750):
+        if 290 - random.randint(0, 50) <= x <= 761 - random.randint(0, 80):
+            return color(110, 97, 69)  
+        
+    elif 550 + random.randint(0, 20) <= y <= 700 - random.randint(0, 15):
+        if 239 + random.randint(0, 30) <= x <= 250 + random.randint(250, 450):
+            return color(110, 97, 69)  
+        
+        elif 239 <= x <= 550 + random.randint(200, 300):
+            r = random.randint(127, 135)
+            g = random.randint(115, 126)
+            b = random.randint(83, 85)
+            return color(r, g, b)  
+        
+    elif 470 + random.randint(0, 20) <= y <= random.randint(600, 620):
+        if 239 <= x <= 250 + random.randint(250, 450):
+            r = random.randint(89, 95)
+            g = random.randint(74, 78)
+            b = random.randint(55, 59)
+            return color(r, g, b)  
+    
+        elif 440 + random.randint(0, 20) <= y <= random.randint(530, 570):
+            if 239 + random.randint(20, 40) <= x <= 550 + random.randint(100, 260):
+                r = random.randint(67, 73)
+                g = random.randint(57, 62)
+                b = random.randint(39, 44)
+                return color(r, g, b)  
+         
+    elif 400 + random.randint(0, 20) <= y <= random.randint(480, 570):
+        if 239 <= x <= 250 + random.randint(250, 450):
+            r = random.randint(127, 135)
+            g = random.randint(115, 126)
+            b = random.randint(83, 85)
+            return color(r, g, b) 
+        
+        elif 239 + random.randint(0, 40) <= x <= 350 + random.randint(300, 560):
+            r = random.randint(89, 95)
+            g = random.randint(74, 78)
+            b = random.randint(55, 59)
+            return color(r, g, b) 
+        
+    elif 330 - random.randint(0, 20) <= y <= random.randint(410, 560):
+        
+        if 239 <= x <= random.randint(250, 260):
+            return color(99, 87, 64) 
+        
+        elif 239 + random.randint(0, 20) <= x <= 250 + random.randint(300, 560):
+            return color(110, 97, 69) 
+        
+    elif 320 - random.randint(0, 5) < y < 325 + random.randint(0, 5):
+        r = random.randint(127, 135)
+        g = random.randint(115, 126)
+        b = random.randint(83, 85)
+        return color(r, g, b)  
+        
+    elif 252 <= y <= 320 + random.randint(0, 20): 
+        if 290 - random.randint(0, 30) <= x <= 761 - random.randint(5, 15):
+            return color(99, 87, 64)   
+            
+    r = random.randint(140, 150)
+    g = random.randint(130, 145)
+    b = random.randint(100, 122)
 
+    return color(r, 136, b) 

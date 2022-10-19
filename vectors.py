@@ -10,6 +10,10 @@ class V2(object):
         self.x = x
         self.y = y
         
+    def round(self):
+        self.x = round(self.x)
+        self.y = round(self.y)
+        
     def __add__(self, other):
         return V2(
             self.x + other.x,

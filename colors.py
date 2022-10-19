@@ -6,7 +6,7 @@
 '''
 from math import trunc
 
-def color(r, g, b):
+def colorT(r, g, b):
     if ((r >= 0 and r <= 1) and (g >= 0 and g <= 1) and (b >= 0 and b <= 1)):
         r = trunc(r * 255)
         g = trunc(g * 255)
@@ -16,12 +16,12 @@ def color(r, g, b):
     
     return bytes([b, g, r])
 
-def color2(r, g, b):
+def color(r, g, b):
     return bytes([b, g, r])
 
-WHITE = color(1, 1, 1)
-BLACK = color(0, 0, 0)
-RED = color(1, 0, 0)
-BLUE = color(0, 0, 1)
-GREEN = color(0, 1, 0)
-YELLOW = color(1,0.898,0.486)
+WHITE = colorT(1, 1, 1)
+BLACK = colorT(0, 0, 0)
+RED = colorT(1, 0, 0)
+BLUE = colorT(0, 0, 1)
+GREEN = colorT(0, 1, 0)
+YELLOW = colorT(1,0.898,0.486)

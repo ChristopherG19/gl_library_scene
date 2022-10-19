@@ -34,7 +34,7 @@ class Texture:
                     g = ord(image.read(1))
                     r = ord(image.read(1))
                     self.pixels[x].append(
-                        color2(r, g, b)
+                        color(r, g, b)
                     )
     
     def get_color(self, tx, ty):
@@ -48,11 +48,22 @@ class Texture:
         y = round(ty * self.height)
         
         #Revisar estos colores (progra defensiva ante valores mayores 255 o menores 0)
-        b = round(self.pixels[y][x][0] * intensity)
-        g = round(self.pixels[y][x][1] * intensity)
-        r = round(self.pixels[y][x][2] * intensity)
+        try:
+            b = round(self.pixels[y][x][0] * intensity)
+        except:
+            b = round(255 * intensity)
         
-        return color2(
+        try:
+            g = round(self.pixels[y][x][1] * intensity)
+        except:
+            g = round(255 * intensity)
+            
+        try:
+            r = round(self.pixels[y][x][2] * intensity)
+        except:
+            r = round(255 * intensity)
+        
+        return color(
             max(min(r, 255), 0), 
             max(min(g, 255), 0), 
             max(min(b, 255), 0)

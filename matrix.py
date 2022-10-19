@@ -4,39 +4,29 @@
     Christopher García 20541
     2do. ciclo 2022
 '''
+class Matrix(object):
+    def __init__(self, matrix = []):
+        self.matrix = matrix
+        
+    def __matmul__(self, matrix_B):
+        res = [[0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+        ]
 
-def matrix_multiplication(matrix_A, matrix_B):
-    res = [[0, 0, 0],
-       [0, 0, 0],
-       [0, 0, 0]]
-
-    # multiply matrix
-    for i in range(len(matrix_A)):
-        for j in range(len(matrix_B or matrix_B[0])):
-            for k in range(len(matrix_B)):
-                if isinstance(matrix_B[0], int):
-                    res[i][j] += matrix_A[i][k] * matrix_B[k]
-                else:
-                    res[i][j] += matrix_A[i][k] * matrix_B[k][j]
+        # multiply matrix
+        for i in range(len(self.matrix)):
+            for j in range(matrix_B.len()):
+                for k in range(matrix_B.len()):
+                    if isinstance(matrix_B.matrix[0], int) or isinstance(matrix_B.matrix[0], float):
+                        res[i][j] += self.matrix[i][k] * matrix_B.matrix[k]
+                    elif isinstance(self.matrix[0], int) or isinstance(self.matrix[0], float):
+                        res[i][j] += self.matrix[k] * matrix_B.matrix[k][j]
+                    else:
+                        res[i][j] += self.matrix[i][k] * matrix_B.matrix[k][j]
+                        
+        return Matrix(res)
     
-    return res
-
-def matrix_multiplication4(matrix_A, matrix_B):
-    res = [[0, 0, 0, 0],
-       [0, 0, 0, 0],
-       [0, 0, 0, 0],
-       [0, 0, 0, 0]
-    ]
-
-    # multiply matrix
-    for i in range(len(matrix_A)):
-        for j in range(len(matrix_B)):
-            for k in range(len(matrix_B)):
-                if isinstance(matrix_B[0], int) or isinstance(matrix_B[0], float):
-                    res[i][j] += matrix_A[i][k] * matrix_B[k]
-                elif isinstance(matrix_A[0], int) or isinstance(matrix_A[0], float):
-                    res[i][j] += matrix_A[k] * matrix_B[k][j]
-                else:
-                    res[i][j] += matrix_A[i][k] * matrix_B[k][j]
-
-    return res
+    def len(self):
+        return len(self.matrix)
